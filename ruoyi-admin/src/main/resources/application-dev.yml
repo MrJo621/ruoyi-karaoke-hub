@@ -1,0 +1,131 @@
+# 数据源配置
+spring:
+    datasource:
+        type: com.alibaba.druid.pool.DruidDataSource
+        druid:
+            # 主库数据源
+            master:
+                url: jdbc:mysql://127.0.0.1:3306/karaoke?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8&nullCatalogMeansCurrent=true
+                username: root
+                password: 123456
+                driverClassName: com.mysql.cj.jdbc.Driver
+            # 从库数据源
+            slave:
+                # 从数据源开关/默认关闭
+                enabled: false
+                url:
+                username:
+                password:
+            water:
+                # 从数据源开关/默认关闭
+                enabled: true
+                url: jdbc:oracle:thin:@22.22.22.222:1521:ahzls
+                username: 22
+                password: 2222
+                driverClassName: oracle.jdbc.driver.OracleDriver
+            # 初始连接数
+            initialSize: 5
+            # 最小连接池数量
+            minIdle: 10
+            # 最大连接池数量
+            maxActive: 20
+            # 配置获取连接等待超时的时间
+            maxWait: 60000
+            # 配置连接超时时间
+            connectTimeout: 30000
+            # 配置网络超时时间
+            socketTimeout: 60000
+            # 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒
+            timeBetweenEvictionRunsMillis: 60000
+            # 配置一个连接在池中最小生存的时间，单位是毫秒
+            minEvictableIdleTimeMillis: 300000
+            # 配置一个连接在池中最大生存的时间，单位是毫秒
+            maxEvictableIdleTimeMillis: 900000
+            # 配置检测连接是否有效
+            validationQuery: SELECT 1 FROM DUAL
+            testWhileIdle: true
+            testOnBorrow: false
+            testOnReturn: false
+            webStatFilter: 
+                enabled: true
+            statViewServlet:
+                enabled: true
+                # 设置白名单，不填则允许所有访问
+                allow:
+                url-pattern: /druid/*
+                # 控制台管理用户名和密码
+                login-username: ruoyi
+                login-password: 123456
+            filter:
+                stat:
+                    enabled: true
+                    # 慢SQL记录
+                    log-slow-sql: true
+                    slow-sql-millis: 1000
+                    merge-sql: true
+                wall:
+                    config:
+                        multi-statement-allow: true
+
+jeecg:
+    minidao-datasource:
+        jdbc-url: jdbc:mysql://127.0.0.1:3306/karaoke?autoReconnect=true&failOverReadOnly=false&maxReconnects=1000&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+        username: root
+        password: 123456
+        driver-class-name: com.mysql.cj.jdbc.Driver
+
+# ================================================================
+# 人声分离配置
+# ================================================================
+karaoke:
+  vocal-separator:
+    # 引擎选择：onnx=AI模型分离；auto=ONNX失败时回退DSP；dsp=中置声道近似处理
+    engine: onnx
+
+    onnx:
+      # 模型路径：classpath: 从 resources 加载，也支持服务器绝对路径
+      model-path: classpath:models/UVR-MDX-NET-Inst_HQ_3.onnx
+      # STFT 帧移，影响时频分辨率
+      hop-length: 1024
+      # 掩码锐化：0=模型原始输出；>0 使用 sigmoid 锐化，推荐 8~15
+      mask-sharpness: 0.0
+      # sigmoid 中心点，仅 mask-sharpness > 0 时生效
+      # 调高：更多内容归人声，伴奏更干净；调低：更多内容归伴奏，人声更干净
+      mask-threshold: 0.5
+      # 推理后端：cpu=通用CPU；coreml=macOS Apple Silicon GPU/神经网络加速；
+      # cuda/gpu=英伟达CUDA，必须把依赖换成 onnxruntime-gpu 并安装匹配CUDA运行库，否则会自动回退CPU
+      execution-provider: coreml
+      # CUDA显卡编号，仅 execution-provider=cuda/gpu 时生效，单卡机器保持0
+      cuda-device-id: 0
+      # CoreML参数，仅 execution-provider=coreml 时生效；0=ONNX Runtime默认策略
+      coreml-flags: 0
+      # 图优化级别：none/basic/extended/all；all速度更好，但初始化耗时和内存占用更高
+      graph-optimization-level: all
+      # 执行模式：sequential=串行更稳；parallel=允许图节点并行，配合 inter-op-threads 使用
+      execution-mode: parallel
+      # M1 Max 10核CPU/64G建议值：保留一部分CPU给FFmpeg、STFT和系统，避免20/20过度抢线程
+      intra-op-threads: 8
+      # 图节点并行线程数；本模型单任务推理不宜过高，2即可吃到一点并行收益
+      inter-op-threads: 2
+      # CPU内存池：true会复用native内存，速度更好但常驻内存更高；本机64G建议开启
+      cpu-arena-allocator: true
+      # 固定输入shape的内存规划缓存：速度更好但占用额外native内存；本机64G建议开启
+      memory-pattern-optimization: true
+
+    dsp:
+      # 伴奏抵消模式：full=全频中置抵消，消人声更强；band=仅人声频段抵消，伴奏更厚但人声残留更多
+      accomp-cancel-mode: full
+      # 伴奏中置声道抵消强度；调高人声残留更少，但伴奏也可能变薄
+      center-cancel-factor: 1.15
+      # 人声高通，去低频轰鸣；调太高会让人声变薄
+      vocal-high-pass-hz: 100.0
+      # 人声低通，减少高频伴奏泄露；调低会让人声更闷
+      vocal-low-pass-hz: 10000.0
+      # 伴奏增益；抵消中置后伴奏会变小，可适当调高
+      accomp-gain: 1.6
+      # 人声增益；人声试听偏小时可调高
+      vocal-gain: 1.2
+      # 伴奏保留少量原始声，避免消原唱后伴奏过薄；越高人声残留越多
+      accomp-dry-mix: 0.01
+      # 人声音轨侧向抑制，减少左右声场乐器串入；过高会让人声失真
+      vocal-side-suppress: 0.30
